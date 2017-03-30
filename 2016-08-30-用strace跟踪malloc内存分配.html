@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>用strace跟踪malloc内存分配 | Liupeng&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="strace是一个非常有用的命令，它用于记录和跟踪程序运行期间收到的信号和调用的系统调用。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用strace跟踪malloc内存分配">
+<meta property="og:url" content="https://liupengs.github.io/2016-08-30-用strace跟踪malloc内存分配.html">
+<meta property="og:site_name" content="Liupeng's Blog">
+<meta property="og:description" content="strace是一个非常有用的命令，它用于记录和跟踪程序运行期间收到的信号和调用的系统调用。">
+<meta property="og:image" content="https://liupengs.github.io/figures/2016-11-07-stack.gif">
+<meta property="og:updated_time" content="2016-11-08T12:19:26.410Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="用strace跟踪malloc内存分配">
+<meta name="twitter:description" content="strace是一个非常有用的命令，它用于记录和跟踪程序运行期间收到的信号和调用的系统调用。">
+<meta name="twitter:image" content="https://liupengs.github.io/figures/2016-11-07-stack.gif">
+  
+  
+    <link rel="icon" href="/logo.gif">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  <link rel="stylesheet" href="/css/style.css">
+  
+
+  
+<!-- baidu tongji -->
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?ad69e2e2c03adfd676717391f204de53";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<!-- End baidu tongji -->
+
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Liupeng&#39;s Blog</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+      </nav>
+	  <!--
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://liupengs.github.io"></form>
+      </div>
+	  -->
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-用strace跟踪malloc内存分配" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2016-08-30-用strace跟踪malloc内存分配.html" class="article-date">
+  <time datetime="2016-08-30T08:46:40.000Z" itemprop="datePublished">2016-08-30</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Strace/">Strace</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      用strace跟踪malloc内存分配
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>strace是一个非常有用的命令，它用于记录和跟踪程序运行期间收到的信号和调用的系统调用。<br><a id="more"></a></p>
+<h2 id="strace的简单使用"><a href="#strace的简单使用" class="headerlink" title="strace的简单使用"></a>strace的简单使用</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">ubuntu64:~$ strace cat /dev/null</div><div class="line">execve(<span class="string">"/bin/cat"</span>, [<span class="string">"cat"</span>, <span class="string">"/dev/null"</span>], [/* 32 vars */]) = 0</div><div class="line">brk(NULL) = 0x112e000</div><div class="line">access(<span class="string">"/etc/ld.so.nohwcap"</span>, F_OK) = -1 ENOENT (No such file or directory)</div><div class="line"></div><div class="line">. . .</div><div class="line"></div><div class="line"><span class="built_in">read</span>(3, <span class="string">""</span>, 131072) = 0</div><div class="line">munmap(0x7f19a65be000, 139264) = 0</div><div class="line">close(3) = 0</div><div class="line">close(1) = 0</div><div class="line">close(2) = 0</div><div class="line">exit_group(0) = ?</div><div class="line">+++ exited with 0 +++</div></pre></td></tr></table></figure>
+<p>每一行表示一个系统调用， 左边为系统调用的名称和参数， 右边为系统调用返回的结果。</p>
+<h2 id="参数"><a href="#参数" class="headerlink" title="参数"></a>参数</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div></pre></td><td class="code"><pre><div class="line">-c 统计每一系统调用的所执行的时间,次数和出错的次数等.</div><div class="line"></div><div class="line"><span class="_">-d</span> 输出strace关于标准错误的调试信息.</div><div class="line"></div><div class="line"><span class="_">-f</span> 跟踪由fork调用所产生的子进程.</div><div class="line"></div><div class="line">-ff 如果提供-o filename,则所有进程的跟踪结果输出到相应的filename.pid中,pid是各进程的进程号.</div><div class="line"></div><div class="line">-F 尝试跟踪vfork调用.在<span class="_">-f</span>时,vfork不被跟踪.</div><div class="line"></div><div class="line">-h 输出简要的帮助信息.</div><div class="line"></div><div class="line">-i 输出系统调用的入口指针.</div><div class="line"></div><div class="line">-q 禁止输出关于脱离的消息.</div><div class="line"></div><div class="line">-r 打印出相对时间关于,,每一个系统调用.</div><div class="line"></div><div class="line">-t 在输出中的每一行前加上时间信息.</div><div class="line"></div><div class="line">-tt 在输出中的每一行前加上时间信息,微秒级.</div><div class="line"></div><div class="line">-ttt 微秒级输出,以秒了表示时间.</div><div class="line"></div><div class="line">-T 显示每一调用所耗的时间.</div><div class="line"></div><div class="line">-v 输出所有的系统调用.一些调用关于环境变量,状态,输入输出等调用由于使用频繁,默认不输出.</div><div class="line"></div><div class="line">-V 输出strace的版本信息.</div><div class="line"></div><div class="line">-x 以十六进制形式输出非标准字符串</div><div class="line"></div><div class="line">-xx 所有字符串以十六进制形式输出.</div><div class="line"></div><div class="line"><span class="_">-a</span> column</div><div class="line"></div><div class="line">设置返回值的输出位置.默认 为40.</div><div class="line"></div><div class="line"><span class="_">-e</span> expr</div><div class="line"></div><div class="line">指定一个表达式,用来控制如何跟踪.格式如下:</div><div class="line"></div><div class="line">[qualifier=][!]value1[,value2]...</div><div class="line"></div><div class="line">qualifier只能是 trace,abbrev,verbose,raw,signal,<span class="built_in">read</span>,write其中之一.value是用来限定的符号或数字.默认的 qualifier是 trace.感叹号是否定符号.例如:</div><div class="line"></div><div class="line">-eopen等价于 <span class="_">-e</span> trace=open,表示只跟踪open调用.而-etrace!=open表示跟踪除了open以外的其他调用.有两个特殊的符号 all 和 none.</div><div class="line"></div><div class="line">注意有些shell使用!来执行历史记录里的命令,所以要使用\\.</div><div class="line"></div><div class="line"><span class="_">-e</span> trace=<span class="built_in">set</span></div><div class="line"></div><div class="line">只跟踪指定的系统 调用.例如:<span class="_">-e</span> trace=open,close,rean,write表示只跟踪这四个系统调用.默认的为<span class="built_in">set</span>=all.</div><div class="line"></div><div class="line"><span class="_">-e</span> trace=file</div><div class="line"></div><div class="line">只跟踪有关文件操作的系统调用.</div><div class="line"></div><div class="line"><span class="_">-e</span> trace=process</div><div class="line"></div><div class="line">只跟踪有关进程控制的系统调用.</div><div class="line"></div><div class="line"><span class="_">-e</span> trace=network</div><div class="line"></div><div class="line">跟踪与网络有关的所有系统调用.</div><div class="line"></div><div class="line"><span class="_">-e</span> strace=signal</div><div class="line"></div><div class="line">跟踪所有与系统信号有关的 系统调用</div><div class="line"></div><div class="line"><span class="_">-e</span> trace=ipc</div><div class="line"></div><div class="line">跟踪所有与进程通讯有关的系统调用</div><div class="line"></div><div class="line"><span class="_">-e</span> abbrev=<span class="built_in">set</span></div><div class="line"></div><div class="line">设定 strace输出的系统调用的结果集.-v 等与 abbrev=none.默认为abbrev=all.</div><div class="line"></div><div class="line"><span class="_">-e</span> raw=<span class="built_in">set</span></div><div class="line"></div><div class="line">将指 定的系统调用的参数以十六进制显示.</div><div class="line"></div><div class="line"><span class="_">-e</span> signal=<span class="built_in">set</span></div><div class="line"></div><div class="line">指定跟踪的系统信号.默认为all.如 signal=!SIGIO(或者signal=!io),表示不跟踪SIGIO信号.</div><div class="line"></div><div class="line"><span class="_">-e</span> <span class="built_in">read</span>=<span class="built_in">set</span></div><div class="line"></div><div class="line">输出从指定文件中读出 的数据.例如:</div><div class="line"></div><div class="line"><span class="_">-e</span> <span class="built_in">read</span>=3,5</div><div class="line"></div><div class="line"><span class="_">-e</span> write=<span class="built_in">set</span></div><div class="line"></div><div class="line">输出写入到指定文件中的数据.</div><div class="line"></div><div class="line">-o filename</div><div class="line"></div><div class="line">将strace的输出写入文件filename</div><div class="line"></div><div class="line">-p pid</div><div class="line"></div><div class="line">跟踪指定的进程pid.</div><div class="line"></div><div class="line"><span class="_">-s</span> strsize</div><div class="line"></div><div class="line">指定输出的字符串的最大长度.默认为32.文件名一直全部输出.</div><div class="line"></div><div class="line">-u username</div><div class="line"></div><div class="line">以username 的UID和GID执行被跟踪的命令</div></pre></td></tr></table></figure>
+<h2 id="用strace查看malloc内存分配"><a href="#用strace查看malloc内存分配" class="headerlink" title="用strace查看malloc内存分配"></a>用strace查看malloc内存分配</h2><p>我在<a href="/2016-11-08-c%E8%AF%AD%E8%A8%80%E5%86%85%E5%AD%98%E6%97%A0%E6%B3%95%E9%87%8A%E6%94%BE.html">博客</a>中曾经提到过malloc采用了两中不同的方式来处理内存申请:</p>
+<ul>
+<li>若分配内存小于 128k，调用 sbrk()，将堆顶指针向高地址移动，获得新的虚存空间。</li>
+<li>若分配内存大于 128k，调用 mmap()，在文件映射区域中分配匿名虚存空间。</li>
+</ul>
+<p>现在我们就strace 跟踪在那篇博客中的 Case #3, 在这之前我先修改 Case #3的代码，添加代码（完整的代码在博客尾部）：</p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">int</span> *<span class="built_in">list</span>;</div><div class="line"><span class="built_in">list</span> = <span class="built_in">malloc</span>(<span class="number">1024</span>*<span class="number">1024</span>);</div><div class="line"><span class="built_in">free</span>(<span class="built_in">list</span>);</div></pre></td></tr></table></figure>
+<p>这段代码用于查看当申请的内存大于128k时， malloc的处理方法。<br>strace 跟踪结果如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line">ubuntu64:~$ strace ./test_mem</div><div class="line">execve(<span class="string">"./test_mem"</span>, [<span class="string">"./test_mem"</span>], [/* 32 vars */]) = 0</div><div class="line"></div><div class="line">. . .</div><div class="line"></div><div class="line">brk(0xd0e000) = 0xd0e000  //通过将堆顶向高地址移动到0xd0e000为进程分配内存</div><div class="line">write(1, <span class="string">"before malloc, the top of heap i"</span>..., 43before malloc, the top of heap is 0xced000) = 43</div><div class="line">write(1, <span class="string">"address of a is 0xced420 top of "</span>..., 62address of a is 0xced420 top of heap after malloc is 0xd0e000) = 62</div><div class="line">brk(0xd40000) = 0xd40000  // 同样通过移动堆顶分配内存</div><div class="line">write(1, <span class="string">"address of a is 0xd06430 top of "</span>..., 62address of a is 0xd06430 top of heap after malloc is 0xd40000) = 62</div><div class="line">write(1, <span class="string">"address of a is 0xd1f440 top of "</span>..., 62address of a is 0xd1f440 top of heap after malloc is 0xd40000) = 62</div><div class="line">brk(0xd72000) = 0xd72000  // 同样通过移动堆顶分配内存</div><div class="line">write(1, <span class="string">"address of a is 0xd38450 top of "</span>..., 62address of a is 0xd38450 top of heap after malloc is 0xd72000) = 62</div><div class="line">write(1, <span class="string">"address of a is 0xd51460 top of "</span>..., 62address of a is 0xd51460 top of heap after malloc is 0xd72000) = 62</div><div class="line">brk(0xda4000) = 0xda4000  // 同样通过移动堆顶分配内存</div><div class="line">write(1, <span class="string">"address of a is 0xd6a470 top of "</span>..., 62address of a is 0xd6a470 top of heap after malloc is 0xda4000) = 62</div><div class="line">write(1, <span class="string">"address of a is 0xd83480 top of "</span>..., 62address of a is 0xd83480 top of heap after malloc is 0xda4000) = 62</div><div class="line">brk(0xdd6000) = 0xdd6000  // 同样通过移动堆顶分配内存</div><div class="line">write(1, <span class="string">"address of a is 0xd9c490 top of "</span>..., 62address of a is 0xd9c490 top of heap after malloc is 0xdd6000) = 62</div><div class="line">write(1, <span class="string">"address of a is 0xdb54a0 top of "</span>..., 62address of a is 0xdb54a0 top of heap after malloc is 0xdd6000) = 62</div><div class="line">brk(0xe08000) = 0xe08000  // 同样通过移动堆顶分配内存</div><div class="line">write(1, <span class="string">"address of a is 0xdce4b0 top of "</span>..., 62address of a is 0xdce4b0 top of heap after malloc is 0xe08000) = 62</div><div class="line">//用mmap在文件映射区为进程分配内存</div><div class="line">mmap(NULL, 1052672, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f0<span class="built_in">cd</span>5140000</div><div class="line">write(1, <span class="string">"malloc end\n"</span>, 11malloc end) = 11</div><div class="line">write(1, <span class="string">"before free, the top of heap is "</span>..., 41before free, the top of heap is 0xe08000) = 41</div><div class="line">brk(0xd0e000) = 0xd0e000 //释放通过brk移动堆顶分配的内存</div><div class="line">write(1, <span class="string">"after free, the top of heap is "</span>..., 41after free, the top of heap is 0xd0e000) = 41</div><div class="line">munmap(0x7f0<span class="built_in">cd</span>5140000, 1052672) = 0 //释放mmap分配的内存</div><div class="line">exit_group(0) = ?</div><div class="line"></div><div class="line">+++ exited with 0 +++</div></pre></td></tr></table></figure>
+<p>结果中省略了程序加载部分内容，从输出结果可以看出：</p>
+<ol>
+<li><p>在为链表申请节点时， 因为每个节点size小于128k（128k是可以调整的）， malloc直接通过brk()函数在堆上分配内存。</p>
+</li>
+<li><p>为list分配内存时，因为它需要1M内存， 所以malloc通过mmap()函数在在文件映射区域分配内存。</p>
+</li>
+</ol>
+<h2 id="附录"><a href="#附录" class="headerlink" title="附录"></a>附录</h2><h3 id="1-32位系统中进程虚拟空间布局"><a href="#1-32位系统中进程虚拟空间布局" class="headerlink" title="1. 32位系统中进程虚拟空间布局"></a>1. 32位系统中进程虚拟空间布局</h3><p><img src="/figures/2016-11-07-stack.gif" alt="内存布局"></p>
+<h3 id="2-Case-3代码"><a href="#2-Case-3代码" class="headerlink" title="2. Case #3代码"></a>2. Case #3代码</h3><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdlib.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;unistd.h&gt;</span></span></div><div class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> node</div><div class="line">&#123;</div><div class="line">         <span class="keyword">char</span> a[<span class="number">1024</span>*<span class="number">100</span>];</div><div class="line">         <span class="keyword">struct</span> node *next;</div><div class="line"> &#125;node;</div><div class="line"></div><div class="line"> <span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">         node *node_first = <span class="literal">NULL</span>, *node_now;</div><div class="line">         node *a;</div><div class="line">         <span class="keyword">int</span> i;</div><div class="line">         <span class="keyword">char</span> s_cmd[<span class="number">100</span>];</div><div class="line">         <span class="built_in">sprintf</span>(s_cmd, <span class="string">"pmap -d %lu | grep mapped"</span>, getpid());</div><div class="line"> </div><div class="line">         <span class="built_in">printf</span>(<span class="string">"before malloc, the top of heap is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line"> </div><div class="line">         <span class="keyword">for</span>(i=<span class="number">0</span>;i&lt;<span class="number">10</span>;i++)&#123;</div><div class="line">                 a=(node *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(node));</div><div class="line">                 a-&gt;next=<span class="literal">NULL</span>;</div><div class="line">                 <span class="keyword">if</span>(node_first==<span class="literal">NULL</span>) node_first=a;</div><div class="line">                 <span class="keyword">else</span> node_now-&gt;next=a;</div><div class="line">                 node_now=a;</div><div class="line"> </div><div class="line">                 <span class="built_in">printf</span>(<span class="string">"address of a is 0x%lx "</span>, a);</div><div class="line">                 <span class="built_in">printf</span>(<span class="string">"top of heap after malloc is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line">         &#125;</div><div class="line"></div><div class="line">         <span class="keyword">int</span> *<span class="built_in">list</span>;</div><div class="line">         <span class="built_in">list</span> = <span class="built_in">malloc</span>(<span class="number">1024</span>*<span class="number">1024</span>);</div><div class="line">         <span class="built_in">printf</span>(<span class="string">"malloc end\n"</span>);</div><div class="line"></div><div class="line">         <span class="built_in">printf</span>(<span class="string">"before free, the top of heap is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line">         <span class="keyword">while</span>(node_first!=<span class="literal">NULL</span>)</div><div class="line">         &#123;</div><div class="line">                 node_now=node_first-&gt;next;</div><div class="line">                 <span class="built_in">free</span>(node_first);</div><div class="line">                 node_first=node_now;</div><div class="line">         &#125;</div><div class="line">         <span class="built_in">printf</span>(<span class="string">"after free, the top  of heap is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line"></div><div class="line">         <span class="built_in">free</span>(<span class="built_in">list</span>);</div><div class="line"></div><div class="line">         <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line"> &#125;</div></pre></td></tr></table></figure>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p> [1] <a href="http://www.cnblogs.com/ggjucheng/archive/2012/01/08/2316692.html" target="_blank" rel="external">Linux strace命令</a><br> [2] <a href="https://en.wikipedia.org/wiki/Strace" target="_blank" rel="external">strace</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://liupengs.github.io/2016-08-30-用strace跟踪malloc内存分配.html" data-id="cj0w8512f0005usurkaah1yuw" class="article-share-link">Share</a>
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/C/">C</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Linux/">Linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Strace/">Strace</a></li></ul>
+
+    </footer>
+  </div>
+</article>
+
+
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2014-03-25-Linux内核之队列操作.html" id="article-nav-older" class="article-nav-link-wrap">
+     <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">Linux内核之队列操作</div>
+    </a>
+  
+</nav>
+
+  </section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Python/">Python</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Strace/">Strace</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/C/">C</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DES/">DES</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/">Python</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Strace/">Strace</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/内存管理/">内存管理</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/内核/">内核</a><span class="tag-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/C/" style="font-size: 15px;">C</a> <a href="/tags/DES/" style="font-size: 10px;">DES</a> <a href="/tags/Linux/" style="font-size: 20px;">Linux</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/Strace/" style="font-size: 10px;">Strace</a> <a href="/tags/内存管理/" style="font-size: 10px;">内存管理</a> <a href="/tags/内核/" style="font-size: 10px;">内核</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/03/">三月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/04/">四月 2013</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2016-08-30-用strace跟踪malloc内存分配.html">用strace跟踪malloc内存分配</a>
+          </li>
+        
+          <li>
+            <a href="/2014-03-25-Linux内核之队列操作.html">Linux内核之队列操作</a>
+          </li>
+        
+          <li>
+            <a href="/2013-06-15-c语言内存无法释放.html">c语言内存无法释放</a>
+          </li>
+        
+          <li>
+            <a href="/2013-04-21-python实现DES加密.html">python实现DES加密</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      联系我: <a href="https://github.com/liupengs" target="_blank" > GitHub </a> | <a href="mailto:liupengs@foxmail.com" target="_blank"> Email</a> | <br>
+	  友情链接: <a href="https://colinxiong.github.io/" target="_blank" > 来一只熊掌啊 </a> | <a href="https://wongxingjun.github.io/" target="_blank" > Flying Mcdull </a> |<br>
+     Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> &copy; | 2017 Peng Liu 
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+<div id="totop" style="position:fixed;bottom:150px;right:50px;cursor: pointer;z-index:100;">
+<a title="top"><img src="/figures/totop.png"/></a>
+</div>
+<script src="/js/totop.js"></script>
+
+  </div>
+</body>
+</html>

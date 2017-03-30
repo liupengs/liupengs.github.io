@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>c语言内存无法释放 | Liupeng&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="这两天用C语言做一个大数据处理的程序，对于一个处理大数据的程序来说除了考虑处理速度之处还有一个要考虑的就是内存管理（当然不是说操作系统的内存分配），因为数据量本身就非常大很多时候是没有额外的内存来让程序浪费的，所以我们要做的就是及时回收内存。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="c语言内存无法释放">
+<meta property="og:url" content="https://liupengs.github.io/2013-06-15-c语言内存无法释放.html">
+<meta property="og:site_name" content="Liupeng's Blog">
+<meta property="og:description" content="这两天用C语言做一个大数据处理的程序，对于一个处理大数据的程序来说除了考虑处理速度之处还有一个要考虑的就是内存管理（当然不是说操作系统的内存分配），因为数据量本身就非常大很多时候是没有额外的内存来让程序浪费的，所以我们要做的就是及时回收内存。">
+<meta property="og:image" content="https://liupengs.github.io/figures/2016-11-07-result-fig.png">
+<meta property="og:updated_time" content="2016-11-08T12:19:11.530Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="c语言内存无法释放">
+<meta name="twitter:description" content="这两天用C语言做一个大数据处理的程序，对于一个处理大数据的程序来说除了考虑处理速度之处还有一个要考虑的就是内存管理（当然不是说操作系统的内存分配），因为数据量本身就非常大很多时候是没有额外的内存来让程序浪费的，所以我们要做的就是及时回收内存。">
+<meta name="twitter:image" content="https://liupengs.github.io/figures/2016-11-07-result-fig.png">
+  
+  
+    <link rel="icon" href="/logo.gif">
+  
+  
+    <link href="//fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  
+  <link rel="stylesheet" href="/css/style.css">
+  
+
+  
+<!-- baidu tongji -->
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?ad69e2e2c03adfd676717391f204de53";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+
+<!-- End baidu tongji -->
+
+
+</head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">Liupeng&#39;s Blog</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"></a>
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">归档</a>
+        
+      </nav>
+	  <!--
+      <nav id="sub-nav">
+        
+        <a id="nav-search-btn" class="nav-icon" title="搜索"></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://liupengs.github.io"></form>
+      </div>
+	  -->
+    </div>
+  </div>
+</header>
+      <div class="outer">
+        <section id="main"><article id="post-c语言内存无法释放" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-meta">
+    <a href="/2013-06-15-c语言内存无法释放.html" class="article-date">
+  <time datetime="2013-06-15T09:47:32.000Z" itemprop="datePublished">2013-06-15</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Linux/">Linux</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      c语言内存无法释放
+    </h1>
+  
+
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>这两天用C语言做一个大数据处理的程序，对于一个处理大数据的程序来说除了考虑处理速度之处还有一个要考虑的就是内存管理（当然不是说操作系统的内存分配），因为数据量本身就非常大很多时候是没有额外的内存来让程序浪费的，所以我们要做的就是及时回收内存。<a id="more"></a></p>
+<p>但就在回收内存的时候我遇到一个问题：虽然我对每一个子串处理完了就将为它分配的内存释放，但是程序所占的内存还是越来越多，我首先考虑到是不是那里有分配 的空间忘了释放，检查一遍没有发现问题。如果这样那没有释放掉内存的原因可能就出现在释放内存的机制上了，我做了一个测试，代码如下：</p>
+<p><strong>Case #1:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdlib.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> cut</div><div class="line">&#123;</div><div class="line">	<span class="keyword">char</span> a[<span class="number">1024</span>*<span class="number">100</span>];</div><div class="line">	<span class="keyword">struct</span> cut *next;</div><div class="line"></div><div class="line"></div><div class="line">&#125;cut;</div><div class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> node</div><div class="line">&#123;</div><div class="line">	<span class="keyword">char</span> a[<span class="number">1024</span>*<span class="number">100</span>];</div><div class="line">	<span class="keyword">struct</span> node *next;</div><div class="line">&#125;node;</div><div class="line">cut *cut_first,*cut_now;</div><div class="line">node *node_first,*node_now;</div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">	node *a;</div><div class="line">	cut *b;</div><div class="line">	<span class="keyword">int</span> i;</div><div class="line">	<span class="keyword">for</span>(i=<span class="number">0</span>;i&lt;<span class="number">10</span>;i++)&#123;</div><div class="line">		a=(node *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(node));</div><div class="line">		a-&gt;next=<span class="literal">NULL</span>;</div><div class="line">		<span class="keyword">if</span>(node_first==<span class="literal">NULL</span>) node_first=a;</div><div class="line">		<span class="keyword">else</span> node_now-&gt;next=a;</div><div class="line">		node_now=a;</div><div class="line"></div><div class="line">		b=(cut *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(cut));</div><div class="line">		b-&gt;next=<span class="literal">NULL</span>;</div><div class="line">		<span class="keyword">if</span>(cut_first==<span class="literal">NULL</span>) cut_first=b;</div><div class="line">		<span class="keyword">else</span> cut_now-&gt;next=b;</div><div class="line">		cut_now=b;</div><div class="line"></div><div class="line">	&#125;</div><div class="line">    <span class="built_in">printf</span>(<span class="string">"malloc all \n"</span>);</div><div class="line">	<span class="built_in">scanf</span>(<span class="string">"%d"</span>,&amp;i);</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"start free node\n"</span>);</div><div class="line">	<span class="keyword">while</span>(node_first!=<span class="literal">NULL</span>)</div><div class="line">	&#123;</div><div class="line">		node_now=node_first-&gt;next;</div><div class="line">		<span class="built_in">free</span>(node_first);</div><div class="line">		node_first=node_now;</div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"have free node\n"</span>);</div><div class="line">	<span class="built_in">scanf</span>(<span class="string">"%d"</span>,&amp;i);</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"start free cut\n"</span>);</div><div class="line">	<span class="keyword">while</span>(cut_first!=<span class="literal">NULL</span>)</div><div class="line">	&#123;</div><div class="line">		cut_now=cut_first-&gt;next;</div><div class="line">		<span class="built_in">free</span>(cut_first);</div><div class="line">		cut_first=cut_now;</div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"have free cut\n"</span>);</div><div class="line">	<span class="built_in">scanf</span>(<span class="string">"%d"</span>,&amp;i);</div><div class="line">	<span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>实验结果是内存直到程序结束才释放，free函数一点作用也没有发挥。因为我在结cut和node两个结构体分配内存时是交叉分配的（同时分配），我猜想问题就出在这是，因为同时分配导致分配给它们的内存空间也是相邻的，在释放的时候虽然将其中一个块结释放了但相邻的两块却没有释放，所以无法形成一个大的内存块（碎片过多）分配结其它需要内存的程序使用，所以这内存一直就被浪费，直到程序结束。（这只是我的一个猜想，我使用的是windows7    vc++6.0 我并不知道windows内存分配的算法，不过好像在linux也会出现这种问题，欢迎指正）。</p>
+<p>如果我不交叉分配，而是一次这一个结构体分配足够内存，释放内存的时候就能将空间释放掉。</p>
+<p><strong>Case #2:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdlib.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> cut</div><div class="line">&#123;</div><div class="line">	<span class="keyword">char</span> a[<span class="number">1024</span>*<span class="number">100</span>];</div><div class="line">	<span class="keyword">struct</span> cut *next;</div><div class="line"></div><div class="line"></div><div class="line">&#125;cut;</div><div class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> node</div><div class="line">&#123;</div><div class="line">	<span class="keyword">char</span> a[<span class="number">1024</span>*<span class="number">100</span>];</div><div class="line">	<span class="keyword">struct</span> node *next;</div><div class="line">&#125;node;</div><div class="line">cut *cut_first,*cut_now;</div><div class="line">node *node_first,*node_now;</div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">	node *a;</div><div class="line">	cut *b;</div><div class="line">	<span class="keyword">int</span> i;</div><div class="line">	<span class="keyword">for</span>(i=<span class="number">0</span>;i&lt;<span class="number">10</span>;i++)&#123;</div><div class="line">		a=(node *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(node));</div><div class="line">		a-&gt;next=<span class="literal">NULL</span>;</div><div class="line">		<span class="keyword">if</span>(node_first==<span class="literal">NULL</span>) node_first=a;</div><div class="line">		<span class="keyword">else</span> node_now-&gt;next=a;</div><div class="line">		node_now=a;</div><div class="line">        &#125;</div><div class="line">	<span class="keyword">for</span>(i=<span class="number">0</span>;i&lt;<span class="number">10</span>;i++)&#123;</div><div class="line">		b=(cut *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(cut));</div><div class="line">		b-&gt;next=<span class="literal">NULL</span>;</div><div class="line">		<span class="keyword">if</span>(cut_first==<span class="literal">NULL</span>) cut_first=b;</div><div class="line">		<span class="keyword">else</span> cut_now-&gt;next=b;</div><div class="line">		cut_now=b;</div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"malloc all \n"</span>);</div><div class="line">	<span class="built_in">scanf</span>(<span class="string">"%d"</span>,&amp;i);</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"start free node\n"</span>);</div><div class="line">	<span class="keyword">while</span>(node_first!=<span class="literal">NULL</span>)</div><div class="line">	&#123;</div><div class="line">		node_now=node_first-&gt;next;</div><div class="line">		<span class="built_in">free</span>(node_first);</div><div class="line">		node_first=node_now;</div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"have free node\n"</span>);</div><div class="line">	<span class="built_in">scanf</span>(<span class="string">"%d"</span>,&amp;i);</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"start free cut\n"</span>);</div><div class="line">	i=<span class="number">0</span>;</div><div class="line">	<span class="keyword">while</span>(cut_first!=<span class="literal">NULL</span>)</div><div class="line">	&#123;</div><div class="line">		cut_now=cut_first-&gt;next;</div><div class="line">		<span class="built_in">free</span>(cut_first);</div><div class="line">		cut_first=cut_now;</div><div class="line">		i++;</div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"have free cut %d \n"</span>,i);</div><div class="line">	<span class="built_in">scanf</span>(<span class="string">"%d"</span>,&amp;i);</div><div class="line">	<span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<h2 id="新更新："><a href="#新更新：" class="headerlink" title="新更新："></a>新更新：</h2><p>这篇博客是我写于好几年前， 最近正在研究glibc中内存管理方面的知识，顺便更新一下这篇博客。首先指出两种代码运行情况。</p>
+<ol>
+<li><p>在windows 10 中 vs 2015 的环境下， 上面两种代码都不会出现内存无法释放（说明windows内存分配有变化）。</p>
+</li>
+<li><p>在 linux下 gcc version 5.4.0， 上面两种代码都会出现内存无法释放。</p>
+</li>
+</ol>
+<p>现在开始分析为什么在linux下内存无法释放（不对windows作讨论）：</p>
+<p>首先我们从代码Case #3入手：</p>
+<p><strong>Case #3:</strong></p>
+<figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdlib.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;unistd.h&gt;</span></span></div><div class="line"><span class="keyword">typedef</span> <span class="keyword">struct</span> node</div><div class="line">&#123;</div><div class="line">	<span class="keyword">char</span> a[<span class="number">1024</span>*<span class="number">100</span>];</div><div class="line">	<span class="keyword">struct</span> node *next;</div><div class="line">&#125;node;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span> <span class="title">main</span><span class="params">()</span></span></div><div class="line">&#123;</div><div class="line">	node *node_first = <span class="literal">NULL</span>, *node_now;</div><div class="line">	node *a;</div><div class="line">	<span class="keyword">int</span> i;</div><div class="line">	<span class="keyword">char</span> s_cmd[<span class="number">100</span>];</div><div class="line">	<span class="built_in">sprintf</span>(s_cmd, <span class="string">"pmap -d %lu | grep mapped"</span>, getpid());</div><div class="line">	<span class="comment">//打印堆顶地址</span></div><div class="line">	<span class="built_in">printf</span>(<span class="string">"before malloc, the top of heap is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line">	</div><div class="line">	<span class="keyword">for</span>(i=<span class="number">0</span>;i&lt;<span class="number">10</span>;i++)&#123;</div><div class="line">		a=(node *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(node));</div><div class="line">		a-&gt;next=<span class="literal">NULL</span>;</div><div class="line">		<span class="keyword">if</span>(node_first==<span class="literal">NULL</span>) node_first=a;</div><div class="line">		<span class="keyword">else</span> node_now-&gt;next=a;</div><div class="line">		node_now=a;</div><div class="line">		<span class="comment">//打印node节点的地址和堆顶地址</span></div><div class="line">		<span class="built_in">printf</span>(<span class="string">"address of a is 0x%lx "</span>, a);</div><div class="line">		<span class="built_in">printf</span>(<span class="string">"top of heap after malloc is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line"></div><div class="line">	&#125;</div><div class="line">	a=(node *)<span class="built_in">malloc</span>(<span class="keyword">sizeof</span>(node)); <span class="comment">//在这里分配一个节点是为了占用堆顶部,方便我们查看glibc内存管理方式</span></div><div class="line">	<span class="built_in">printf</span>(<span class="string">"malloc end\n"</span>);</div><div class="line">	system(s_cmd); <span class="comment">//在这里用pmap 命令查看进程占用的内存</span></div><div class="line">	<span class="built_in">printf</span>(<span class="string">"before free, the top of heap is 0x%lx\n"</span>, sbrk(<span class="number">0</span>)); <span class="comment">//打印node节点的地址和堆顶地址</span></div><div class="line">	<span class="keyword">while</span>(node_first!=<span class="literal">NULL</span>) <span class="comment">//释放链表</span></div><div class="line">	&#123;</div><div class="line">		node_now=node_first-&gt;next;</div><div class="line">		<span class="built_in">free</span>(node_first);</div><div class="line">		node_first=node_now;</div><div class="line">	&#125;</div><div class="line">	<span class="built_in">printf</span>(<span class="string">"after free, the top  of heap is 0x%lx\n"</span>, sbrk(<span class="number">0</span>));</div><div class="line">	system(s_cmd);<span class="comment">//在这里用pmap 命令查看进程占用的内存, 链表释放后，程序占有的内存没变</span></div><div class="line">	<span class="built_in">free</span>(a);</div><div class="line">	system(s_cmd);<span class="comment">//在这里用pmap 命令查看进程占用的内存, 释放掉a后， 链表占有的内存才被释放掉。</span></div><div class="line">	<span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>代码一共分为两个部分: 首先我们动态申请一个链表， 然后释放这个链表， 并同时查看这个进程占用的内存。这段代码运行结果如下：</p>
+<p><img src="/figures/2016-11-07-result-fig.png" alt="结果"></p>
+<p>从运行结果可以看出：</p>
+<ol>
+<li><p>链表所有节点都是在堆上分配的（因为从运行结果可以看出链表各个节点的地址小于堆顶的地址）。</p>
+</li>
+<li><p>在链表释放前后进程占有的内存没有变化， 堆顶地址也没有变化（看第一个红框和第二个）。</p>
+</li>
+<li><p>在节点a释放后链表占用的内存归还给了操作系统（第三个红框显示，进程占用的内存有降低）。</p>
+</li>
+</ol>
+<p>为什么在释放掉链表node_first后进程占有的内存没有变化呢？</p>
+<p>因为malloc采用了两中不同的方式来处理内存申请：</p>
+<ol>
+<li><p>若分配内存小于 128k ，调用 sbrk() ，将堆顶指针向高地址移动，获得新的虚存空间。</p>
+</li>
+<li><p>若分配内存大于 128k ，调用 mmap() ，在文件映射区域中分配匿名虚存空间。</p>
+</li>
+</ol>
+<p>用mmap()分配的内存释放后会立即归还给系统， 然而采用sbrk()分配的内存调用free()后并不一定会马上规划给系统。具体细节请看参考文献[2]。</p>
+<p>因为链表每个节点的size小于128K，所以malloc在堆上为链表分配内存，于是在a释放前链表的占用内存没有被释放。 现在知道了为什么Case 1和2 在链表free后, 进程占有的内存不变的原因了。</p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><p>[1] <a href="http://tencentdba.com/blog/linux-virtual-memory-glibc/" target="_blank" rel="external">十问 Linux 虚拟内存管理 (glibc)</a><br>[2] <a href="http://bbs.csdn.net/topics/330179712" target="_blank" rel="external">频繁分配释放内存导致的性能问题的分析</a><br>[3] <a href="http://blog.csdn.net/phenics/article/details/777053" target="_blank" rel="external">ptmalloc</a></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://liupengs.github.io/2013-06-15-c语言内存无法释放.html" data-id="cj0w851290001usur9jqhgdl5" class="article-share-link">Share</a>
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/C/">C</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Linux/">Linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/内存管理/">内存管理</a></li></ul>
+
+    </footer>
+  </div>
+</article>
+
+
+    
+<nav id="article-nav">
+  
+    <a href="/2014-03-25-Linux内核之队列操作.html" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Linux内核之队列操作
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2013-04-21-python实现DES加密.html" id="article-nav-older" class="article-nav-link-wrap">
+     <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">python实现DES加密</div>
+    </a>
+  
+</nav>
+
+  </section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Python/">Python</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Strace/">Strace</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list"><li class="tag-list-item"><a class="tag-list-link" href="/tags/C/">C</a><span class="tag-list-count">2</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/DES/">DES</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Linux/">Linux</a><span class="tag-list-count">3</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Python/">Python</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Strace/">Strace</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/内存管理/">内存管理</a><span class="tag-list-count">1</span></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/内核/">内核</a><span class="tag-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/C/" style="font-size: 15px;">C</a> <a href="/tags/DES/" style="font-size: 10px;">DES</a> <a href="/tags/Linux/" style="font-size: 20px;">Linux</a> <a href="/tags/Python/" style="font-size: 10px;">Python</a> <a href="/tags/Strace/" style="font-size: 10px;">Strace</a> <a href="/tags/内存管理/" style="font-size: 10px;">内存管理</a> <a href="/tags/内核/" style="font-size: 10px;">内核</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/08/">八月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/03/">三月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/06/">六月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/04/">四月 2013</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2016-08-30-用strace跟踪malloc内存分配.html">用strace跟踪malloc内存分配</a>
+          </li>
+        
+          <li>
+            <a href="/2014-03-25-Linux内核之队列操作.html">Linux内核之队列操作</a>
+          </li>
+        
+          <li>
+            <a href="/2013-06-15-c语言内存无法释放.html">c语言内存无法释放</a>
+          </li>
+        
+          <li>
+            <a href="/2013-04-21-python实现DES加密.html">python实现DES加密</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      联系我: <a href="https://github.com/liupengs" target="_blank" > GitHub </a> | <a href="mailto:liupengs@foxmail.com" target="_blank"> Email</a> | <br>
+	  友情链接: <a href="https://colinxiong.github.io/" target="_blank" > 来一只熊掌啊 </a> | <a href="https://wongxingjun.github.io/" target="_blank" > Flying Mcdull </a> |<br>
+     Powered by <a href="http://hexo.io/" target="_blank">Hexo</a> &copy; | 2017 Peng Liu 
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">首页</a>
+  
+    <a href="/archives" class="mobile-nav-link">归档</a>
+  
+</nav>
+    
+
+<script src="//ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+<div id="totop" style="position:fixed;bottom:150px;right:50px;cursor: pointer;z-index:100;">
+<a title="top"><img src="/figures/totop.png"/></a>
+</div>
+<script src="/js/totop.js"></script>
+
+  </div>
+</body>
+</html>
